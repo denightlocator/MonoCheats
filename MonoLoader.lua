@@ -1326,3 +1326,162 @@ openBtn.MouseButton1Click:Connect(function()
 end)
 
 WindUI:Notify({ Title = "Mono", Content = "Loaded from GitHub.", Duration = 4, Icon = "check" })
+    function Window:Tab(o) return makeTab(o) end
+    function Window:Section() return { Tab = function(_, o) return makeTab(o) end } end
+    function Window:SelectTab(i)
+        local t = tabOrder[tonumber(i) or 1]
+        if t then selectTab(t.name) end
+    end
+    function Window:SetToggleKey(code) if typeof(code) == "EnumItem" then T.toggleKey = code end end
+    function Window:SetUIScale(v)
+        userScale = math.clamp(tonumber(v) or 1, 0.5, 2)
+        pop.Scale = userScale
+    end
+    function Window:SetTheme() end
+    function Window:Destroy() pcall(function() gui:Destroy() end) end
+    function Window:Toggle() setShown(not shown) end
+
+    function Lib:CreateWindow(o)
+        if o and typeof(o.ToggleKey) == "EnumItem" then T.toggleKey = o.ToggleKey end
+        return Window
+    end
+    function Lib:Notify(o) pcall(notify, o or {}) end
+    function Lib:Popup(o) pcall(popup, o or {}) end
+
+    Lib.ScreenGui = gui
+    Lib.window = window
+    Lib.select = selectTab
+    Lib.selectSection = selectSection
+    Lib.collapse = setCollapsed
+    Lib.show = function() setShown(true) end
+    Lib.hide = function() setShown(false) end
+
+    return Lib
+end)()
+
+-- Core Logic for the Games
+local Core = { Games = {} }
+Core.WindUI = WindUI
+
+Core.Games["Survive 100 Days"] = {
+    Icon = "shield",
+    Features = {
+        { Type = "Section", Title = "Movement" },
+        { 
+            Type = "Toggle", Title = "Fly", Desc = "WASD to fly, Space/Ctrl to go up/down.", Icon = "wind", 
+            Callback = function(state) 
+                print("[Cheat] Fly:", state)
+                local char = game.Players.LocalPlayer.Character
+                if not char then return end
+                local hrp = char:FindFirstChild("HumanoidRootPart")
+                local hum = char:FindFirstChildOfClass("Humanoid")
+                if state then
+                    hum.PlatformStand = true
+                    local bv = Instance.new("BodyVelocity", hrp)
+                    bv.Name = "CheatFly"
+                    bv.MaxForce = Vector3.one * 9e9
+                    bv.Velocity = Vector3.zero
+                    local bg = Instance.new("BodyGyro", hrp)
+                    bg.Name = "CheatGyro"
+                    bg.MaxTorque = Vector3.one * 9e9
+                    bg.P = 9e4
+                    bg.CFrame = hrp.CFrame
+                    
+                    game:GetService("RunService").RenderStepped:Connect(function()
+                        if not bv.Parent then return end
+                        local cam = workspace.CurrentCamera
+                        local move = Vector3.zero
+                        if game:GetService("UserInputService"):IsKeyDown(Enum.KeyCode.W) then move += cam.CFrame.LookVector end
+                        if game:GetService("UserInputService"):IsKeyDown(Enum.KeyCode.S) then move -= cam.CFrame.LookVector end
+                        if game:GetService("UserInputService"):IsKeyDown(Enum.KeyCode.A) then move -= cam.CFrame.RightVector end
+                        if game:GetService("UserInputService"):IsKeyDown(Enum.KeyCode.D) then move += cam.CFrame.RightVector end
+                        if game:GetService("UserInputService"):IsKeyDown(Enum.KeyCode.Space) then move += Vector3.yAxis end
+                        if game:GetService("UserInputService"):IsKeyDown(Enum.KeyCode.LeftControl) then move -= Vector3.yAxis end
+                        bv.Velocity = move * 80
+                        bg.CFrame = cam.CFrame
+                    end)
+                else
+                    hum.PlatformStand = false
+                    if hrp:FindFirstChild("CheatFly") then hrp.CheatFly:Destroy() end
+                    if hrp:FindFirstChild("CheatGyro") then hrp.CheatGyro:Destroy() end
+                end
+            end 
+        },
+        { Type = "Section", Title = "Visuals" },
+        { 
+            Type = "Toggle", Title = "No Fog", Desc = "Removes distance fog.", Icon = "eye", 
+            Callback = function(state)
+                local Lighting = game:GetService("Lighting")
+                local cam = workspace.CurrentCamera
+                if state then
+                    Lighting.FogEnd = 100000
+                    Lighting.FogStart = 0
+                    if cam:FindFirstChildOfClass("Atmosphere") then
+                        cam.Atmosphere.Density = 0
+                    end
+                else
+                    Lighting.FogEnd = 1000
+                    Lighting.FogStart = 0
+                    if cam:FindFirstChildOfClass("Atmosphere") then
+                        cam.Atmosphere.Density = 0.3
+                    end
+                end
+            end 
+        }
+    }
+}
+
+function Core.BuildMenu(Window)
+    local GamesTab = Window:Tab({ Title = "Games", Icon = "gamepad-2", IconColor = Color3.fromRGB(255, 255, 255) })
+    for gameName, gameData in pairs(Core.Games) do
+        local GameTab = GamesTab:Tab({ Title = gameName, Icon = gameData.Icon, IconColor = Color3.fromRGB(255, 255, 255) })
+        for _, feat in ipairs(gameData.Features) do
+            if feat.Type == "Section" then
+                GameTab:Section({ Title = feat.Title })
+            elseif feat.Type == "Toggle" then
+                GameTab:Toggle(feat)
+            elseif feat.Type == "Slider" then
+                GameTab:Slider(feat)
+            elseif feat.Type == "Button" then
+                GameTab:Button(feat)
+            end
+        end
+    end
+end
+
+-- Initialize UI
+local Window = WindUI:CreateWindow({
+    Title = "Mono", Icon = "circle",
+    Size = UDim2.fromOffset(680, 580),
+    ToggleKey = Enum.KeyCode.Z,
+})
+
+Core.BuildMenu(Window)
+
+-- Visual toggle button
+local openBtn = Instance.new("TextButton")
+openBtn.Parent = game:GetService("CoreGui")
+openBtn.Size = UDim2.new(0, 50, 0, 50)
+openBtn.Position = UDim2.new(0, 20, 0.5, -25)
+openBtn.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+openBtn.BackgroundTransparency = 0.3
+openBtn.Text = "MENU"
+openBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+openBtn.Font = Enum.Font.GothamBold
+openBtn.TextSize = 14
+openBtn.BorderSizePixel = 0
+openBtn.Active = true
+openBtn.Draggable = true
+
+local corner = Instance.new("UICorner", openBtn)
+corner.CornerRadius = UDim.new(1, 0)
+
+openBtn.MouseButton1Click:Connect(function()
+    if Window.Visible then
+        WindUI.hide()
+    else
+        WindUI.show()
+    end
+end)
+
+WindUI:Notify({ Title = "Mono", Content = "Loaded from GitHub.", Duration = 4, Icon = "check" })
