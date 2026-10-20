@@ -1,3 +1,7 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UIS = game:GetService("UserInputService")
+
 local WindUI = (function()
     local TweenService = game:GetService("TweenService")
     local TextService  = game:GetService("TextService")
@@ -1183,100 +1187,6 @@ local WindUI = (function()
     end
     function Lib:Notify(o) pcall(notify, o or {}) end
     function Lib:Popup(o) pcall(popup, o or {}) end
-    function Lib:AddTheme() end
-    function Lib:SetTheme() end
-
-    function Lib:PresetSheet(tabObj, api)
-        local sg = tabObj:Current()
-        local _, slot = row(sg, "New preset", "Saves this game's settings under a name.")
-        new("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, px(8)),
-            VerticalAlignment = Enum.VerticalAlignment.Center, SortOrder = Enum.SortOrder.LayoutOrder }, slot)
-        local box = new("TextBox", {
-            LayoutOrder = 1, Size = UDim2.fromOffset(px(150), K.ctrlH), ClearTextOnFocus = false,
-            FontFace = T.font, TextSize = px(12), TextColor3 = T.text, PlaceholderText = "Preset name",
-            PlaceholderColor3 = T.muted, Text = "", TextXAlignment = Enum.TextXAlignment.Left,
-        }, slot)
-        corner(box, px(6))
-        glass(box, { fill = 0.93, rim = 0.75, radius = px(6) })
-        new("UIPadding", { PaddingLeft = UDim.new(0, px(10)), PaddingRight = UDim.new(0, px(10)) }, box)
-
-        local function pillButton(parent, iconName, text, light, order)
-            local b = new("TextButton", {
-                LayoutOrder = order, Size = UDim2.fromOffset(textW(text, px(12), T.fontBold) + px(34), K.ctrlH), AutoButtonColor = false, Text = "",
-            }, parent)
-            corner(b, px(7))
-            local rest = light and 0.1 or 0.9
-            glass(b, { fill = rest, rim = light and 0.3 or 0.7, shine = light and 0.2 or 0.5, radius = px(7) })
-            new("ImageLabel", {
-                Position = UDim2.fromOffset(px(10), math.floor((K.ctrlH - px(11)) / 2)), Size = UDim2.fromOffset(px(11), px(11)),
-                BackgroundTransparency = 1, Image = icon(iconName), ImageColor3 = light and T.bg or T.text,
-            }, b)
-            new("TextLabel", {
-                Position = UDim2.fromOffset(px(26), 0), Size = UDim2.new(1, -px(30), 1, 0), BackgroundTransparency = 1,
-                FontFace = T.fontBold, TextSize = px(12), TextColor3 = light and T.bg or T.text,
-                TextXAlignment = Enum.TextXAlignment.Left, Text = text,
-            }, b)
-            b.MouseEnter:Connect(function() tween(b, 0.12, { BackgroundTransparency = light and 0 or 0.84 }) end)
-            b.MouseLeave:Connect(function() tween(b, 0.12, { BackgroundTransparency = rest }) end)
-            return b
-        end
-        local saveBtn = pillButton(slot, "save", "Save", true, 2)
-        local function save()
-            local name = box.Text:gsub("^%s+", ""):gsub("%s+$", "")
-            if name == "" then api.save(name) return end
-            if api.exists(name) then
-                popup({ Title = "Overwrite preset", Content = ("A preset called \"%s\" already exists. Replace it with the current settings?"):format(name),
-                    Buttons = { { Title = "Cancel" }, { Title = "Overwrite", Variant = "Primary", Callback = function() api.save(name) end } } })
-            else
-                api.save(name)
-            end
-            box.Text = ""
-        end
-        saveBtn.MouseButton1Click:Connect(save)
-        box.FocusLost:Connect(function(enter) if enter then save() end end)
-
-        local listGroup = group(tabObj.page, "Saved presets")
-        local sheet = {}
-        function sheet.rebuild()
-            for _, c in ipairs(listGroup.card:GetChildren()) do
-                if c:IsA("Frame") then c:Destroy() end
-            end
-            listGroup.rows = 0
-            local names = api.names()
-            local auto = api.autoload()
-            if #names == 0 then
-                row(listGroup, "No presets yet", "Name one above and press Save.")
-                return
-            end
-            for _, name in ipairs(names) do
-                local _, s = row(listGroup, name, auto == name and "Loads when you join this game." or nil, auto == name and { "On start" } or nil)
-                new("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, px(6)),
-                    VerticalAlignment = Enum.VerticalAlignment.Center, SortOrder = Enum.SortOrder.LayoutOrder }, s)
-                local star = new("ImageButton", { LayoutOrder = 1, Size = UDim2.fromOffset(K.ctrlH, K.ctrlH), BackgroundTransparency = 1, Image = "", AutoButtonColor = false }, s)
-                new("ImageLabel", {
-                    AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(px(12), px(12)),
-                    BackgroundTransparency = 1, Image = ICON.star, ImageColor3 = auto == name and C.amber or T.muted,
-                }, star)
-                local load = pillButton(s, "play", "Load", true, 2)
-                local del = new("ImageButton", { LayoutOrder = 3, Size = UDim2.fromOffset(K.ctrlH, K.ctrlH), Image = "", AutoButtonColor = false }, s)
-                corner(del, px(7))
-                glass(del, { fill = 0.9, rim = 0.7, radius = px(7) })
-                local delIcon = new("ImageLabel", {
-                    AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(px(12), px(12)),
-                    BackgroundTransparency = 1, Image = ICON["trash-2"], ImageColor3 = T.subtext,
-                }, del)
-                del.MouseEnter:Connect(function() tween(delIcon, 0.12, { ImageColor3 = C.red }) end)
-                del.MouseLeave:Connect(function() tween(delIcon, 0.12, { ImageColor3 = T.subtext }) end)
-                star.MouseButton1Click:Connect(function() api.setAutoload(auto ~= name and name or nil) end)
-                load.MouseButton1Click:Connect(function() api.load(name) end)
-                del.MouseButton1Click:Connect(function()
-                    popup({ Title = "Delete preset", Content = ("Delete \"%s\"? This cannot be undone."):format(name),
-                        Buttons = { { Title = "Cancel" }, { Title = "Delete", Variant = "Primary", Callback = function() api.delete(name) end } } })
-                end)
-            end
-        end
-        return sheet
-    end
 
     Lib.ScreenGui = gui
     Lib.window = window
@@ -1285,32 +1195,57 @@ local WindUI = (function()
     Lib.collapse = setCollapsed
     Lib.show = function() setShown(true) end
     Lib.hide = function() setShown(false) end
-    Lib.setShown = setShown
+
     return Lib
 end)()
--- [PASTE ALL 2000 LINES OF WINDUI HERE, ENDING WITH: return Lib end)()]
 
--- Create the Table that will hold your game logic
+-- Core Logic for the Games
 local Core = { Games = {} }
 Core.WindUI = WindUI
 
--- Define the "Survive 100 Days" Game Logic
 Core.Games["Survive 100 Days"] = {
     Icon = "shield",
     Features = {
         { Type = "Section", Title = "Movement" },
         { 
-            Type = "Toggle", Title = "Fly", Desc = "WASD to fly.", Icon = "wind", 
+            Type = "Toggle", Title = "Fly", Desc = "WASD to fly, Space/Ctrl to go up/down.", Icon = "wind", 
             Callback = function(state) 
-                print("Fly state:", state)
-                -- Put actual fly code here
-            end 
-        },
-        { 
-            Type = "Slider", Title = "Fly Speed", Icon = "gauge", 
-            Value = { Min = 10, Max = 300, Default = 80 }, Step = 5,
-            Callback = function(val) 
-                print("Fly Speed:", val)
+                print("[Cheat] Fly:", state)
+                local char = game.Players.LocalPlayer.Character
+                if not char then return end
+                local hrp = char:FindFirstChild("HumanoidRootPart")
+                local hum = char:FindFirstChildOfClass("Humanoid")
+                if state then
+                    hum.PlatformStand = true
+                    local bv = Instance.new("BodyVelocity", hrp)
+                    bv.Name = "CheatFly"
+                    bv.MaxForce = Vector3.one * 9e9
+                    bv.Velocity = Vector3.zero
+                    local bg = Instance.new("BodyGyro", hrp)
+                    bg.Name = "CheatGyro"
+                    bg.MaxTorque = Vector3.one * 9e9
+                    bg.P = 9e4
+                    bg.CFrame = hrp.CFrame
+                    
+                    -- Simple fly loop
+                    game:GetService("RunService").RenderStepped:Connect(function()
+                        if not bv.Parent then return end
+                        local cam = workspace.CurrentCamera
+                        local move = Vector3.zero
+                        if game:GetService("UserInputService"):IsKeyDown(Enum.KeyCode.W) then move += cam.CFrame.LookVector end
+                        if game:GetService("UserInputService"):IsKeyDown(Enum.KeyCode.S) then move -= cam.CFrame.LookVector end
+                        if game:GetService("UserInputService"):IsKeyDown(Enum.KeyCode.A) then move -= cam.CFrame.RightVector end
+                        if game:GetService("UserInputService"):IsKeyDown(Enum.KeyCode.D) then move += cam.CFrame.RightVector end
+                        if game:GetService("UserInputService"):IsKeyDown(Enum.KeyCode.Space) then move += Vector3.yAxis end
+                        if game:GetService("UserInputService"):IsKeyDown(Enum.KeyCode.LeftControl) then move -= Vector3.yAxis end
+                        bv.Velocity = move * 80
+                        bg.CFrame = cam.CFrame
+                    end)
+                else
+                    hum.PlatformStand = false
+                    if hrp:FindFirstChild("CheatFly") then hrp.CheatFly:Destroy() end
+                    if hrp:FindFirstChild("CheatGyro") then hrp.CheatGyro:Destroy() end
+                end
             end 
         },
         { Type = "Section", Title = "Visuals" },
@@ -1318,22 +1253,29 @@ Core.Games["Survive 100 Days"] = {
             Type = "Toggle", Title = "No Fog", Desc = "Removes distance fog.", Icon = "eye", 
             Callback = function(state)
                 local Lighting = game:GetService("Lighting")
-                Lighting.FogEnd = state and 100000 or 1000
-                if workspace.CurrentCamera:FindFirstChildOfClass("Atmosphere") then
-                    workspace.CurrentCamera.Atmosphere.Density = state and 0 or 0.3
+                local cam = workspace.CurrentCamera
+                if state then
+                    Lighting.FogEnd = 100000
+                    Lighting.FogStart = 0
+                    if cam:FindFirstChildOfClass("Atmosphere") then
+                        cam.Atmosphere.Density = 0
+                    end
+                else
+                    Lighting.FogEnd = 1000
+                    Lighting.FogStart = 0
+                    if cam:FindFirstChildOfClass("Atmosphere") then
+                        cam.Atmosphere.Density = 0.3
+                    end
                 end
             end 
         }
     }
 }
 
--- The Dynamic UI Builder
 function Core.BuildMenu(Window)
     local GamesTab = Window:Tab({ Title = "Games", Icon = "gamepad-2", IconColor = Color3.fromRGB(255, 255, 255) })
-    
     for gameName, gameData in pairs(Core.Games) do
         local GameTab = GamesTab:Tab({ Title = gameName, Icon = gameData.Icon, IconColor = Color3.fromRGB(255, 255, 255) })
-        
         for _, feat in ipairs(gameData.Features) do
             if feat.Type == "Section" then
                 GameTab:Section({ Title = feat.Title })
@@ -1348,4 +1290,39 @@ function Core.BuildMenu(Window)
     end
 end
 
-return Core
+-- Initialize UI
+local Window = WindUI:CreateWindow({
+    Title = "Mono", Icon = "circle",
+    Size = UDim2.fromOffset(680, 580),
+    ToggleKey = Enum.KeyCode.Z,
+})
+
+Core.BuildMenu(Window)
+
+-- Visual toggle button
+local openBtn = Instance.new("TextButton")
+openBtn.Parent = game:GetService("CoreGui")
+openBtn.Size = UDim2.new(0, 50, 0, 50)
+openBtn.Position = UDim2.new(0, 20, 0.5, -25)
+openBtn.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+openBtn.BackgroundTransparency = 0.3
+openBtn.Text = "MENU"
+openBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+openBtn.Font = Enum.Font.GothamBold
+openBtn.TextSize = 14
+openBtn.BorderSizePixel = 0
+openBtn.Active = true
+openBtn.Draggable = true
+
+local corner = Instance.new("UICorner", openBtn)
+corner.CornerRadius = UDim.new(1, 0)
+
+openBtn.MouseButton1Click:Connect(function()
+    if Window.Visible then
+        WindUI.hide()
+    else
+        WindUI.show()
+    end
+end)
+
+WindUI:Notify({ Title = "Mono", Content = "Loaded from GitHub.", Duration = 4, Icon = "check" })
